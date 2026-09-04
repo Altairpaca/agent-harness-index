@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
@@ -10,6 +11,7 @@ from .aggregate import summarize
 from .compare import compare_cells
 from .dataset import inspect_dataset
 from .model import Observation
+from .skillbench import SkillBenchDiagnostic, normalize_skillbench_observation
 
 
 def _iter_records(path: Path) -> Iterable[tuple[int, dict[str, object]]]:
@@ -55,6 +57,15 @@ def _validate(path: Path) -> int:
     return 0 if not errors and count > 0 else 1
 
 
+def _normalize_skillbench(path: Path) -> int:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("SkillBench observation must be a JSON object")
+    result = normalize_skillbench_observation(value)
+    print(json.dumps(asdict(result), sort_keys=True, separators=(",", ":")))
+    return 1 if isinstance(result, SkillBenchDiagnostic) else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ahi", description="Normalize and compare agent-harness benchmark observations.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -71,6 +82,12 @@ def main(argv: list[str] | None = None) -> int:
     compare_parser = subparsers.add_parser("compare", help="compare two single cells on matched benchmark/task/trial observations")
     compare_parser.add_argument("left", type=Path)
     compare_parser.add_argument("right", type=Path)
+
+    skillbench_parser = subparsers.add_parser(
+        "normalize-skillbench",
+        help="normalize one verified skillbench.harness-observation/v1 payload into AHI",
+    )
+    skillbench_parser.add_argument("path", type=Path)
 
     args = parser.parse_args(argv)
     if args.command == "validate":
@@ -91,7 +108,10 @@ def main(argv: list[str] | None = None) -> int:
             report = compare_cells(_load(args.left), _load(args.right))
             print(json.dumps(report, indent=2, sort_keys=True))
             return 0
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
+
+        if args.command == "normalize-skillbench":
+            return _normalize_skillbench(args.path)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
         print(f"ahi: {exc}", file=sys.stderr)
         return 2
 
