@@ -26,9 +26,14 @@ def _task_set_sha256(task_ids: Iterable[str]) -> str:
 
 
 def summarize(observations: Iterable[Observation]) -> list[dict[str, Any]]:
-    groups: dict[tuple[str, str | None, str, str | None, str], list[Observation]] = defaultdict(list)
+    groups: dict[
+        tuple[str, str | None, str, str | None, str, str | None, str],
+        list[Observation],
+    ] = defaultdict(list)
     for observation in observations:
         key = (
+            observation.benchmark,
+            observation.benchmark_version,
             observation.harness,
             observation.harness_version,
             observation.model,
@@ -39,7 +44,15 @@ def summarize(observations: Iterable[Observation]) -> list[dict[str, Any]]:
 
     rows: list[dict[str, Any]] = []
     for key in sorted(groups, key=lambda item: tuple(value or "" for value in item)):
-        harness, harness_version, model, model_version, configuration_sha256 = key
+        (
+            benchmark,
+            benchmark_version,
+            harness,
+            harness_version,
+            model,
+            model_version,
+            configuration_sha256,
+        ) = key
         items = groups[key]
         successes = sum(1 for item in items if item.success)
         low, high = _wilson95(successes, len(items))
@@ -51,6 +64,8 @@ def summarize(observations: Iterable[Observation]) -> list[dict[str, Any]]:
         rows.append(
             {
                 "schema_version": "ahi.summary/v1",
+                "benchmark": benchmark,
+                "benchmark_version": benchmark_version,
                 "harness": harness,
                 "harness_version": harness_version,
                 "model": model,
