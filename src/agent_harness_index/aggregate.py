@@ -27,7 +27,7 @@ def _task_set_sha256(task_ids: Iterable[str]) -> str:
 
 def summarize(observations: Iterable[Observation]) -> list[dict[str, Any]]:
     groups: dict[
-        tuple[str, str | None, str, str | None, str, str | None, str],
+        tuple[str, str | None, str, str | None, str, str | None, str, str],
         list[Observation],
     ] = defaultdict(list)
     for observation in observations:
@@ -39,6 +39,7 @@ def summarize(observations: Iterable[Observation]) -> list[dict[str, Any]]:
             observation.model,
             observation.model_version,
             observation.configuration_sha256,
+            observation.environment_sha256,
         )
         groups[key].append(observation)
 
@@ -52,6 +53,7 @@ def summarize(observations: Iterable[Observation]) -> list[dict[str, Any]]:
             model,
             model_version,
             configuration_sha256,
+            environment_sha256,
         ) = key
         items = groups[key]
         successes = sum(1 for item in items if item.success)
@@ -71,6 +73,7 @@ def summarize(observations: Iterable[Observation]) -> list[dict[str, Any]]:
                 "model": model,
                 "model_version": model_version,
                 "configuration_sha256": configuration_sha256,
+                "environment_sha256": environment_sha256,
                 "task_set_sha256": _task_set_sha256(item.task_id for item in items),
                 "distinct_tasks": len({item.task_id for item in items}),
                 "observations": len(items),

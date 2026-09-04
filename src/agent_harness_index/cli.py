@@ -7,6 +7,8 @@ import sys
 from typing import Iterable
 
 from .aggregate import summarize
+from .compare import compare_cells
+from .dataset import inspect_dataset
 from .model import Observation
 
 
@@ -54,27 +56,44 @@ def _validate(path: Path) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ahi", description="Normalize and summarize agent-harness benchmark observations.")
+    parser = argparse.ArgumentParser(prog="ahi", description="Normalize and compare agent-harness benchmark observations.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    validate_parser = subparsers.add_parser("validate", help="validate observation JSONL")
+    validate_parser = subparsers.add_parser("validate", help="validate observation JSONL syntax and row contracts")
     validate_parser.add_argument("path", type=Path)
+
+    integrity_parser = subparsers.add_parser("integrity", help="inspect dataset-level uniqueness and content fingerprint")
+    integrity_parser.add_argument("path", type=Path)
 
     summarize_parser = subparsers.add_parser("summarize", help="aggregate comparable observations")
     summarize_parser.add_argument("path", type=Path)
+
+    compare_parser = subparsers.add_parser("compare", help="compare two single cells on matched benchmark/task/trial observations")
+    compare_parser.add_argument("left", type=Path)
+    compare_parser.add_argument("right", type=Path)
 
     args = parser.parse_args(argv)
     if args.command == "validate":
         return _validate(args.path)
 
-    if args.command == "summarize":
-        try:
+    try:
+        if args.command == "integrity":
+            report = inspect_dataset(_load(args.path))
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return 0 if report["valid"] else 1
+
+        if args.command == "summarize":
             rows = summarize(_load(args.path))
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
-            print(f"ahi: {exc}", file=sys.stderr)
-            return 2
-        print(json.dumps(rows, indent=2, sort_keys=True))
-        return 0
+            print(json.dumps(rows, indent=2, sort_keys=True))
+            return 0
+
+        if args.command == "compare":
+            report = compare_cells(_load(args.left), _load(args.right))
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return 0
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"ahi: {exc}", file=sys.stderr)
+        return 2
 
     parser.error("unknown command")
     return 2
