@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from agent_harness_index import Observation, compare_cells, dataset_fingerprint, inspect_dataset
+from agent_harness_index import Observation, compare_cells, dataset_fingerprint, inspect_dataset, summarize
 
 
 def observation(**overrides: object) -> Observation:
@@ -22,6 +22,7 @@ def observation(**overrides: object) -> Observation:
         "latency_ms": 1000,
         "input_tokens": 100,
         "output_tokens": 50,
+        "environment": {"os": "linux"},
         "configuration": {"reasoning": "high"},
     }
     data.update(overrides)
@@ -43,6 +44,16 @@ class DatasetTests(unittest.TestCase):
         report = inspect_dataset([observation(), observation(task_id="task-b")])
         self.assertFalse(report["valid"])
         self.assertTrue(any("duplicate run_id" in error for error in report["errors"]))
+
+    def test_aggregation_never_coalesces_different_environments(self) -> None:
+        rows = summarize(
+            [
+                observation(),
+                observation(run_id="run-2", environment={"os": "windows"}),
+            ]
+        )
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(len({row["environment_sha256"] for row in rows}), 2)
 
 
 class ComparisonTests(unittest.TestCase):
@@ -66,6 +77,7 @@ class ComparisonTests(unittest.TestCase):
 
         report = compare_cells(left, right)
         self.assertEqual(report["matched_trials"], 2)
+        self.assertTrue(report["environment_match"])
         self.assertEqual(report["success"]["left_rate"], 0.5)
         self.assertEqual(report["success"]["right_rate"], 1.0)
         self.assertEqual(report["success"]["right_wins"], 1)
@@ -83,6 +95,14 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(report["matched_trials"], 1)
         self.assertEqual(report["left_only"], 1)
         self.assertEqual(report["right_only"], 0)
+
+    def test_comparison_surfaces_environment_mismatch(self) -> None:
+        report = compare_cells(
+            [observation()],
+            [observation(run_id="r", model="b", harness="b", environment={"os": "windows"})],
+        )
+        self.assertFalse(report["environment_match"])
+        self.assertNotEqual(report["left"]["environment_sha256"], report["right"]["environment_sha256"])
 
 
 if __name__ == "__main__":
