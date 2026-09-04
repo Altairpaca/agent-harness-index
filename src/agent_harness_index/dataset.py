@@ -26,6 +26,7 @@ def observation_identity(observation: Observation) -> tuple[object, ...]:
         observation.harness,
         observation.harness_version,
         observation.configuration_sha256,
+        observation.environment_sha256,
     )
 
 
