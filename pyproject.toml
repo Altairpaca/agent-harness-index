@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-harness-index"
+version = "0.0.0"
+description = "Normalized empirical observations for AI agent harness benchmarks."
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Altair Li" }]
+dependencies = []
+
+[project.scripts]
+ahi = "agent_harness_index.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
