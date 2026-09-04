@@ -42,9 +42,17 @@ def _optional_nonnegative_int(data: Mapping[str, Any], key: str) -> int | None:
     return value
 
 
-def configuration_fingerprint(configuration: Mapping[str, Any]) -> str:
-    canonical = json.dumps(configuration, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+def mapping_fingerprint(value: Mapping[str, Any]) -> str:
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def configuration_fingerprint(configuration: Mapping[str, Any]) -> str:
+    return mapping_fingerprint(configuration)
+
+
+def environment_fingerprint(environment: Mapping[str, Any]) -> str:
+    return mapping_fingerprint(environment)
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +80,10 @@ class Observation:
     @property
     def configuration_sha256(self) -> str:
         return configuration_fingerprint(self.configuration)
+
+    @property
+    def environment_sha256(self) -> str:
+        return environment_fingerprint(self.environment)
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> "Observation":
