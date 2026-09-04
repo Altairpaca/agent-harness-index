@@ -50,11 +50,13 @@ def configuration_fingerprint(configuration: Mapping[str, Any]) -> str:
 @dataclass(frozen=True, slots=True)
 class Observation:
     run_id: str
+    benchmark: str
     task_id: str
     trial: int
     model: str
     harness: str
     success: bool
+    benchmark_version: str | None = None
     model_version: str | None = None
     harness_version: str | None = None
     latency_ms: float | None = None
@@ -93,11 +95,13 @@ class Observation:
 
         return cls(
             run_id=_required_str(data, "run_id"),
+            benchmark=_required_str(data, "benchmark"),
             task_id=_required_str(data, "task_id"),
             trial=trial,
             model=_required_str(data, "model"),
             harness=_required_str(data, "harness"),
             success=success,
+            benchmark_version=_optional_str(data, "benchmark_version"),
             model_version=_optional_str(data, "model_version"),
             harness_version=_optional_str(data, "harness_version"),
             latency_ms=_optional_nonnegative_number(data, "latency_ms"),
