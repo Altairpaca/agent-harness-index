@@ -9,6 +9,7 @@ One JSONL row is one trial of one task under one model/harness/configuration cel
 Required identity fields are:
 
 - `run_id`
+- `benchmark`
 - `task_id`
 - `trial`
 - `model`
@@ -16,7 +17,9 @@ Required identity fields are:
 - `success`
 - `schema_version`
 
-Versions, cost, latency, token counts, environment, configuration and evidence URI should be recorded whenever the runner can observe them.
+`benchmark_version` should be recorded whenever the source benchmark has a meaningful release/version identity. The benchmark field is mandatory because task IDs are only meaningful inside a benchmark namespace and must never coalesce across unrelated suites.
+
+Model/harness versions, cost, latency, token counts, environment, configuration and evidence URI should be recorded whenever the runner can observe them.
 
 ## Comparability rules
 
@@ -24,14 +27,14 @@ A public comparison should not rank two rows merely because both report a succes
 
 At minimum, comparable cells should share:
 
-1. the same task-set fingerprint;
+1. the same benchmark identity/version and task-set fingerprint;
 2. compatible success criteria;
 3. pinned or explicitly recorded harness versions;
 4. pinned or explicitly recorded model identity/version where available;
 5. equivalent reasoning/effort and tool policy, represented in `configuration`;
 6. enough repeated trials to expose stochastic variance.
 
-`task_set_sha256` and `configuration_sha256` exist to make accidental apples-to-oranges aggregation visible.
+`task_set_sha256` and `configuration_sha256` exist to make accidental apples-to-oranges aggregation visible. The aggregator also groups by benchmark identity before computing a task-set fingerprint.
 
 ## Missing metrics
 
