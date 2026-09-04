@@ -18,11 +18,21 @@ def _cell_signature(item: Observation) -> tuple[object, ...]:
         item.harness,
         item.harness_version,
         item.configuration_sha256,
+        item.environment_sha256,
     )
 
 
 def _signature_dict(signature: tuple[object, ...]) -> dict[str, object]:
-    benchmark, benchmark_version, model, model_version, harness, harness_version, configuration_sha256 = signature
+    (
+        benchmark,
+        benchmark_version,
+        model,
+        model_version,
+        harness,
+        harness_version,
+        configuration_sha256,
+        environment_sha256,
+    ) = signature
     return {
         "benchmark": benchmark,
         "benchmark_version": benchmark_version,
@@ -31,6 +41,7 @@ def _signature_dict(signature: tuple[object, ...]) -> dict[str, object]:
         "harness": harness,
         "harness_version": harness_version,
         "configuration_sha256": configuration_sha256,
+        "environment_sha256": environment_sha256,
     }
 
 
@@ -39,7 +50,7 @@ def _require_single_cell(items: list[Observation], side: str) -> tuple[object, .
         raise ValueError(f"{side} cell contains no observations")
     signatures = {_cell_signature(item) for item in items}
     if len(signatures) != 1:
-        raise ValueError(f"{side} input must contain exactly one model/harness/configuration cell")
+        raise ValueError(f"{side} input must contain exactly one model/harness/configuration/environment cell")
     return next(iter(signatures))
 
 
@@ -96,6 +107,7 @@ def compare_cells(left: Iterable[Observation], right: Iterable[Observation]) -> 
         "schema_version": COMPARISON_SCHEMA_VERSION,
         "left": _signature_dict(left_signature),
         "right": _signature_dict(right_signature),
+        "environment_match": left_signature[7] == right_signature[7],
         "matched_trials": len(matched),
         "matched_set_sha256": matched_set_sha256,
         "left_only": len(left_by_key.keys() - right_by_key.keys()),
