@@ -18,12 +18,19 @@ def _required_str(data: Mapping[str, Any], key: str) -> str:
 
 def _string_list(data: Mapping[str, Any], key: str, *, required: bool = False) -> tuple[str, ...]:
     value = data.get(key)
-    if value is None and not required:
+    if value is None:
+        if required:
+            raise ValueError(f"{key} must be a non-empty array of strings")
         return ()
-    if not isinstance(value, list) or not value or any(not isinstance(item, str) or not item.strip() for item in value):
-        raise ValueError(f"{key} must be a non-empty array of strings")
-    normalized = tuple(dict.fromkeys(item.strip() for item in value))
-    return normalized
+    if not isinstance(value, list):
+        raise ValueError(f"{key} must be an array of strings")
+    if not value:
+        if required:
+            raise ValueError(f"{key} must be a non-empty array of strings")
+        return ()
+    if any(not isinstance(item, str) or not item.strip() for item in value):
+        raise ValueError(f"{key} must contain only non-empty strings")
+    return tuple(dict.fromkeys(item.strip() for item in value))
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,8 +72,9 @@ class BenchmarkCatalogEntry:
             "task_families": list(self.task_families),
             "metrics": list(self.metrics),
             "evidence_policy": self.evidence_policy,
-            "versions": list(self.versions),
         }
+        if self.versions:
+            value["versions"] = list(self.versions)
         if self.notes is not None:
             value["notes"] = self.notes
         return value
@@ -84,16 +92,15 @@ class BenchmarkCatalog:
         raw_entries = data.get("benchmarks")
         if not isinstance(raw_entries, list) or not raw_entries:
             raise ValueError("benchmarks must be a non-empty array")
-        entries = tuple(
-            BenchmarkCatalogEntry.from_mapping(item)
-            if isinstance(item, dict)
-            else (_ for _ in ()).throw(ValueError("benchmark entries must be objects"))
-            for item in raw_entries
-        )
+        entries: list[BenchmarkCatalogEntry] = []
+        for item in raw_entries:
+            if not isinstance(item, dict):
+                raise ValueError("benchmark entries must be objects")
+            entries.append(BenchmarkCatalogEntry.from_mapping(item))
         ids = [entry.id for entry in entries]
         if len(ids) != len(set(ids)):
             raise ValueError("benchmark ids must be unique")
-        return cls(entries=entries)
+        return cls(entries=tuple(entries))
 
     def to_mapping(self) -> dict[str, object]:
         return {
