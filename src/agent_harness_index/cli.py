@@ -98,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     catalog_query.add_argument("path", type=Path)
     catalog_query.add_argument("--metric")
     catalog_query.add_argument("--task-family")
+    catalog_query.add_argument("--horizon", choices=["short", "medium", "long", "mixed", "unknown"])
     catalog_query.add_argument("--text")
 
     catalog_coverage_parser = subparsers.add_parser(
@@ -137,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "catalog-query":
             catalog = load_catalog(args.path)
-            entries = catalog.query(metric=args.metric, task_family=args.task_family, text=args.text)
+            entries = catalog.query(metric=args.metric, task_family=args.task_family, horizon=args.horizon, text=args.text)
             print(render_catalog(entries))
             return 0
 
