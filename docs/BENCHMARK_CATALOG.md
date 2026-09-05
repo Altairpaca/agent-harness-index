@@ -1,41 +1,55 @@
-# Benchmark catalog foundation
+# Benchmark catalog and evidence discovery
 
 ## Motivation
 
-AHI currently validates and compares evidence after observations exist. Discovery remains manual: contributors need to know which benchmark, harness and capability dimensions are already represented.
+AHI validates and compares evidence after observations exist. Discovery previously remained manual: contributors had to know which benchmark, task family and metrics were already represented, and catalog metadata could easily be mistaken for measured support.
 
-The catalog layer adds metadata discovery without changing evidence semantics.
+The catalog layer adds metadata discovery while the coverage layer answers a separate question: **what evidence do we actually have?**
 
 ## Catalog entities
 
-A catalog entry may describe:
+An `ahi.catalog/v1` entry may describe:
 
 - benchmark identity and versions;
-- task family;
-- supported evaluation dimensions;
-- expected observation fields;
-- primary documentation links;
-- evidence status.
+- task families;
+- evaluation dimensions the benchmark can expose;
+- source/documentation URL;
+- evidence policy and notes.
+
+Catalog metadata is descriptive. Listing `cost_usd` means the benchmark can represent that metric; it does not mean AHI has observed cost evidence.
+
+## Evidence coverage
+
+`ahi catalog-coverage <catalog.json> <observations.jsonl>` joins catalog entries against normalized observations and reports:
+
+- observation count;
+- model and harness identities seen;
+- metrics actually observed;
+- declared metrics that still have no evidence;
+- evidence-URI coverage;
+- declared benchmark versions with and without observations;
+- unversioned observations;
+- observations whose benchmark is not cataloged.
+
+This is intentionally not a ranking surface. Zero coverage means unknown, not poor performance.
+
+## CLI
+
+```bash
+ahi catalog-validate catalog.json
+ahi catalog-query catalog.json --metric cost_usd
+ahi catalog-query catalog.json --task-family software-engineering
+ahi catalog-coverage catalog.json results.jsonl
+```
 
 ## Evidence boundary
 
-Catalog metadata is descriptive. It does not create benchmark results.
-
-Every capability claim must still come from:
+Every capability/performance claim must still come from:
 
 - normalized observations;
 - reproducible configuration identity;
 - environment provenance;
-- explicit evidence snapshots.
+- explicit evidence snapshots;
+- matched comparisons where comparative language is used.
 
-## Future schema direction
-
-```text
-benchmark
-  -> task families
-  -> expected metrics
-  -> compatible observation schema
-  -> evidence snapshots
-```
-
-The catalog should remain independent from any model vendor, harness vendor or ranking policy.
+Catalog and coverage outputs must not convert vendor/model descriptions into scores. This keeps AHI distinct from a universal leaderboard or literature-only benchmark index.
