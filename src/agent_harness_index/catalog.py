@@ -7,6 +7,7 @@ from typing import Any, Mapping, Sequence
 
 CATALOG_SCHEMA_VERSION = "ahi.catalog/v1"
 _ALLOWED_METRICS = frozenset({"success", "cost_usd", "latency_ms", "input_tokens", "output_tokens"})
+_ALLOWED_HORIZONS = frozenset({"short", "medium", "long", "mixed", "unknown"})
 
 
 def _required_str(data: Mapping[str, Any], key: str) -> str:
@@ -33,6 +34,13 @@ def _string_list(data: Mapping[str, Any], key: str, *, required: bool = False) -
     return tuple(dict.fromkeys(item.strip() for item in value))
 
 
+def _optional_horizon(data: Mapping[str, Any]) -> str:
+    value = data.get("horizon", "unknown")
+    if not isinstance(value, str) or value not in _ALLOWED_HORIZONS:
+        raise ValueError(f"horizon must be one of: {', '.join(sorted(_ALLOWED_HORIZONS))}")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class BenchmarkCatalogEntry:
     id: str
@@ -42,6 +50,7 @@ class BenchmarkCatalogEntry:
     metrics: tuple[str, ...]
     evidence_policy: str
     versions: tuple[str, ...] = ()
+    horizon: str = "unknown"
     notes: str | None = None
 
     @classmethod
@@ -61,6 +70,7 @@ class BenchmarkCatalogEntry:
             metrics=metrics,
             evidence_policy=_required_str(data, "evidence_policy"),
             versions=_string_list(data, "versions"),
+            horizon=_optional_horizon(data),
             notes=notes.strip() if isinstance(notes, str) else None,
         )
 
@@ -72,6 +82,7 @@ class BenchmarkCatalogEntry:
             "task_families": list(self.task_families),
             "metrics": list(self.metrics),
             "evidence_policy": self.evidence_policy,
+            "horizon": self.horizon,
         }
         if self.versions:
             value["versions"] = list(self.versions)
@@ -113,10 +124,13 @@ class BenchmarkCatalog:
         *,
         metric: str | None = None,
         task_family: str | None = None,
+        horizon: str | None = None,
         text: str | None = None,
     ) -> tuple[BenchmarkCatalogEntry, ...]:
         if metric is not None and metric not in _ALLOWED_METRICS:
             raise ValueError(f"unsupported metric: {metric}")
+        if horizon is not None and horizon not in _ALLOWED_HORIZONS:
+            raise ValueError(f"unsupported horizon: {horizon}")
         needle = text.casefold().strip() if text else None
         result: list[BenchmarkCatalogEntry] = []
         for entry in self.entries:
@@ -124,8 +138,10 @@ class BenchmarkCatalog:
                 continue
             if task_family is not None and task_family not in entry.task_families:
                 continue
+            if horizon is not None and horizon != entry.horizon:
+                continue
             if needle is not None:
-                haystack = " ".join((entry.id, entry.name, entry.evidence_policy, entry.notes or "")).casefold()
+                haystack = " ".join((entry.id, entry.name, entry.evidence_policy, entry.horizon, entry.notes or "")).casefold()
                 if needle not in haystack:
                     continue
             result.append(entry)
