@@ -12,9 +12,12 @@ An `ahi.catalog/v1` entry may describe:
 
 - benchmark identity and versions;
 - task families;
+- explicit task horizon (`short`, `medium`, `long`, `mixed`, `unknown`);
 - evaluation dimensions the benchmark can expose;
 - source/documentation URL;
 - evidence policy and notes.
+
+Horizon is descriptive context for interpreting harness evidence. Unknown stays `unknown`; AHI does not infer horizon from benchmark names or marketing copy.
 
 Catalog metadata is descriptive. Listing `cost_usd` means the benchmark can represent that metric; it does not mean AHI has observed cost evidence.
 
@@ -39,6 +42,7 @@ This is intentionally not a ranking surface. Zero coverage means unknown, not po
 ahi catalog-validate catalog.json
 ahi catalog-query catalog.json --metric cost_usd
 ahi catalog-query catalog.json --task-family software-engineering
+ahi catalog-query catalog.json --horizon long
 ahi catalog-coverage catalog.json results.jsonl
 ```
 
