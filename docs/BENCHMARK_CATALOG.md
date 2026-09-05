@@ -23,16 +23,7 @@ Catalog metadata is descriptive. Listing `cost_usd` means the benchmark can repr
 
 ## Evidence coverage
 
-`ahi catalog-coverage <catalog.json> <observations.jsonl>` joins catalog entries against normalized observations and reports:
-
-- observation count;
-- model and harness identities seen;
-- metrics actually observed;
-- declared metrics that still have no evidence;
-- evidence-URI coverage;
-- declared benchmark versions with and without observations;
-- unversioned observations;
-- observations whose benchmark is not cataloged.
+`ahi catalog-coverage <catalog.json> <observations.jsonl>` joins catalog entries against normalized observations and reports observation count, models/harnesses observed, metrics actually observed, declared metrics without evidence, evidence-URI coverage, benchmark-version coverage, unversioned observations and uncataloged benchmarks.
 
 This is intentionally not a ranking surface. Zero coverage means unknown, not poor performance.
 
@@ -48,12 +39,6 @@ ahi catalog-coverage catalog.json results.jsonl
 
 ## Evidence boundary
 
-Every capability/performance claim must still come from:
-
-- normalized observations;
-- reproducible configuration identity;
-- environment provenance;
-- explicit evidence snapshots;
-- matched comparisons where comparative language is used.
+Every capability/performance claim must still come from normalized observations, reproducible configuration identity, environment provenance, explicit evidence snapshots and matched comparisons where comparative language is used.
 
 Catalog and coverage outputs must not convert vendor/model descriptions into scores. This keeps AHI distinct from a universal leaderboard or literature-only benchmark index.
