@@ -8,7 +8,9 @@ import sys
 from typing import Iterable
 
 from .aggregate import summarize
+from .catalog import load_catalog, render_catalog
 from .compare import compare_cells
+from .coverage import catalog_coverage
 from .dataset import inspect_dataset
 from .model import Observation
 from .skillbench import SkillBenchDiagnostic, normalize_skillbench_observation
@@ -89,6 +91,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     skillbench_parser.add_argument("path", type=Path)
 
+    catalog_validate = subparsers.add_parser("catalog-validate", help="validate an ahi.catalog/v1 benchmark catalog")
+    catalog_validate.add_argument("path", type=Path)
+
+    catalog_query = subparsers.add_parser("catalog-query", help="discover benchmarks by evidence-relevant metadata")
+    catalog_query.add_argument("path", type=Path)
+    catalog_query.add_argument("--metric")
+    catalog_query.add_argument("--task-family")
+    catalog_query.add_argument("--horizon", choices=["short", "medium", "long", "mixed", "unknown"])
+    catalog_query.add_argument("--text")
+
+    catalog_coverage_parser = subparsers.add_parser(
+        "catalog-coverage",
+        help="report which catalog metadata is backed by normalized observations",
+    )
+    catalog_coverage_parser.add_argument("catalog", type=Path)
+    catalog_coverage_parser.add_argument("observations", type=Path)
+
     args = parser.parse_args(argv)
     if args.command == "validate":
         return _validate(args.path)
@@ -111,6 +130,22 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "normalize-skillbench":
             return _normalize_skillbench(args.path)
+
+        if args.command == "catalog-validate":
+            catalog = load_catalog(args.path)
+            print(json.dumps({"valid": True, "benchmarks": len(catalog.entries)}, sort_keys=True))
+            return 0
+
+        if args.command == "catalog-query":
+            catalog = load_catalog(args.path)
+            entries = catalog.query(metric=args.metric, task_family=args.task_family, horizon=args.horizon, text=args.text)
+            print(render_catalog(entries))
+            return 0
+
+        if args.command == "catalog-coverage":
+            report = catalog_coverage(load_catalog(args.catalog), _load(args.observations))
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return 0
     except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
         print(f"ahi: {exc}", file=sys.stderr)
         return 2
