@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from hashlib import sha256
 import json
+from math import isfinite
 from typing import Any, Mapping
 
 SCHEMA_VERSION = "ahi.observation/v1"
@@ -30,7 +31,13 @@ def _optional_nonnegative_number(data: Mapping[str, Any], key: str) -> float | N
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
         raise ValueError(f"{key} must be a non-negative number when present")
-    return float(value)
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{key} must be finite when present") from exc
+    if not isfinite(normalized):
+        raise ValueError(f"{key} must be finite when present")
+    return normalized
 
 
 def _optional_nonnegative_int(data: Mapping[str, Any], key: str) -> int | None:
@@ -42,8 +49,37 @@ def _optional_nonnegative_int(data: Mapping[str, Any], key: str) -> int | None:
     return value
 
 
+def _validate_json_value(value: Any, active: set[int]) -> None:
+    """Reject coercions that would erase metadata identity before hashing."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise ValueError("JSON numbers must be finite")
+        return
+    if not isinstance(value, (dict, list)):
+        raise ValueError("metadata must contain only JSON values")
+    identity = id(value)
+    if identity in active:
+        raise ValueError("metadata must not contain cycles")
+    active.add(identity)
+    try:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if not isinstance(key, str):
+                    raise ValueError("JSON object keys must be strings")
+                _validate_json_value(item, active)
+        else:
+            for item in value:
+                _validate_json_value(item, active)
+    finally:
+        active.remove(identity)
+
+
 def mapping_fingerprint(value: Mapping[str, Any]) -> str:
-    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    _validate_json_value(value, set())
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=False, allow_nan=False)
     return sha256(canonical.encode("utf-8")).hexdigest()
 
 
@@ -104,6 +140,11 @@ class Observation:
             raise ValueError("environment must be an object")
         if not isinstance(configuration, dict):
             raise ValueError("configuration must be an object")
+        for name, metadata in (("environment", environment), ("configuration", configuration)):
+            try:
+                mapping_fingerprint(metadata)
+            except (ValueError, TypeError, RecursionError, UnicodeError) as exc:
+                raise ValueError(f"{name} must be a finite, portable JSON object: {exc}") from exc
 
         return cls(
             run_id=_required_str(data, "run_id"),
